@@ -35,7 +35,7 @@ POSITIVE_THRESHOLD = 0.8
 NEGATIVE_THRESHOLD = 0.3
 positive_count = 0
 negative_count = 0
-GESTURE_CONFIRMATION = 3
+GESTURE_CONFIRMATION = 2
 
 # Require a negative detection before accepting another gesture
 gesture_armed = True

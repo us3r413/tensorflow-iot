@@ -11,7 +11,9 @@ If you change the file name of SA.py to i.e., "new_SA.py", you can execute it by
 
 #### SA's routine jobs can be written in on_register().
 https://github.com/IoTtalk/Dummy_Device_IoTtalk_v1_py/blob/7591046a34a7e3f5b6855eec51f67946c051c8ee/SA.py#L23C5-L23C20
-
+#### To use motion recorder
+python DAI.py MotionRecorder.py
+remember to change the csv file name in MotionRecorder.py
 #### For long-running applications, Agent.py can assistant you to run and monitor DAI.py. Agent.py has three abilities.
 1. Monitor the execution state of DAI.py. If DAI.py is dead or crash, Agent.py executes DAI.py again.
 2. Restart DAI.py at a specified time everyday.
