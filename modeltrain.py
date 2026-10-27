@@ -7,7 +7,7 @@ import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
-TIME_STEP = 20
+TIME_STEP = 15
 FEATURES = [
     'AccX', 'AccY', 'AccZ',
     'GyroX', 'GyroY', 'GyroZ'
@@ -24,7 +24,7 @@ for filename in glob.glob('data/*.csv'):
     df = pd.read_csv(filename)
 
     # Assign labels based on the file name.
-    label = 1 if 'rotate' in filename.lower() else 0
+    label = 2 if 'counterclockwise' in filename.lower() else 0 if 'random' in filename.lower() else 1
 
     data = df[FEATURES].apply(
         pd.to_numeric, errors='coerce'
@@ -73,12 +73,12 @@ model = tf.keras.Sequential([
     tf.keras.layers.LSTM(32, return_sequences=True),
     tf.keras.layers.LSTM(16),
     tf.keras.layers.Dense(8, activation='relu'),
-    tf.keras.layers.Dense(1, activation='sigmoid')
+    tf.keras.layers.Dense(3, activation='softmax')
 ])
 
 model.compile(
     optimizer='adam',
-    loss='binary_crossentropy',
+    loss='sparse_categorical_crossentropy',
     metrics=['accuracy']
 )
 
@@ -96,7 +96,7 @@ model.fit(
     ]
 )
 
-model.save('circle_detector.keras')
-joblib.dump(scaler, 'sensor_scaler.pkl')
+model.save('clockwise_model.keras')
+joblib.dump(scaler, 'clockwise_scaler.pkl')
 
 print("Model saved!")

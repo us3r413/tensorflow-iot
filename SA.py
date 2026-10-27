@@ -20,90 +20,89 @@ device_id = None
 device_name = None
 exec_interval = 0.5
 
-TIME_STEP = 20
+TIME_STEP = 15
 FEATURES = 6
 
-model = tf.keras.models.load_model('circle_detector.keras')
-scaler = joblib.load('sensor_scaler.pkl')
+model = tf.keras.models.load_model('clockwise_model.keras')
+scaler = joblib.load('clockwise_scaler.pkl')
 
 sensor_buffer = deque(maxlen=TIME_STEP)
 
-latest_prediction = 0
 light_state = 0
 
-POSITIVE_THRESHOLD = 0.8
-NEGATIVE_THRESHOLD = 0.3
-positive_count = 0
-negative_count = 0
-GESTURE_CONFIRMATION = 2
-
-# Require a negative detection before accepting another gesture
-gesture_armed = True
-
+clockwise_con = 0
+counterclockwise_con = 0
+con_cnt = 4
+certain_threshold = 0.8
 def Dummy_Control(data):
-    global latest_prediction, light_state
-    global positive_count, negative_count, gesture_armed
-
+    global light_state, clockwise_con, counterclockwise_con
     try:
-        # Extract accelerometer and gyroscope data
         sensor = data[0]
-        acc = sensor[0]
-        gyro = sensor[1]
-
-        reading = list(acc) + list(gyro)
-
-        if len(reading) != FEATURES:
-            print("Unexpected feature count:", len(reading))
-            return
-
-        sensor_buffer.append(reading)
-
-        if len(sensor_buffer) < TIME_STEP:
-            return
-
-        # Prepare input for the model
-        X = np.asarray(sensor_buffer, dtype=np.float32)
-        X = scaler.transform(X)
-        X = X.reshape(1, TIME_STEP, FEATURES)
-
-        probability = float(model.predict(X, verbose=0)[0, 0])
-        latest_prediction = int(probability >= 0.5)
-
-        print(
-            f"Probability: {probability:.3f}, "
-            f"Prediction: {latest_prediction}, "
-            f"Light: {light_state}"
-        )
-
-        # Detect a circular gesture
-        if probability >= POSITIVE_THRESHOLD:
-            positive_count += 1
-            negative_count = 0
-
-            if (
-                positive_count >= GESTURE_CONFIRMATION
-                and gesture_armed
-            ):
-                light_state = 1 - light_state
-                gesture_armed = False
-                positive_count = 0
-
-                print(f"Light toggled: {light_state}")
-
-        # Re-arm after the gesture ends
-        elif probability <= NEGATIVE_THRESHOLD:
-            negative_count += 1
-            positive_count = 0
-
-            if negative_count >= GESTURE_CONFIRMATION:
-                gesture_armed = True
-
+        acc, gyro = sensor
+        row = list(acc) + list(gyro)
     except (IndexError, TypeError, ValueError) as e:
         print(f"Invalid sensor data: {e}")
+        return
+
+    if len(row) != FEATURES:
+        print(f"Invalid sensor data: expected 6 values, got {len(row)}")
+        return
+
+    sensor_buffer.append(row)
+
+    # Wait until 20 readings are available.
+    if len(sensor_buffer) < TIME_STEP:
+        print(f"Collecting sensor data: {len(sensor_buffer)}/{TIME_STEP}")
+        return
+
+    # Shape: (1, 20, 6)
+    model_input = np.asarray(
+        sensor_buffer, dtype=np.float32
+    ).reshape(1, TIME_STEP, FEATURES)
+
+    # Use the same StandardScaler fitted during training.
+    model_input = scaler.transform(
+        model_input.reshape(-1, FEATURES)
+    ).reshape(1, TIME_STEP, FEATURES)
+
+    # Predict the gesture.
+    probabilities = model.predict(model_input, verbose=0)[0]
+    gesture = int(np.argmax(probabilities))
+    confidence = float(probabilities[gesture])
+
+    if gesture == 1 and confidence >= certain_threshold:
+        clockwise_con += 1
+        print(f"Clockwise detected ({confidence:.2%})")
+        counterclockwise_con = 0
+        if clockwise_con >= con_cnt:
+            light_state = 1
+            print("Light ON")
+            clockwise_con = 0
+            counterclockwise_con = 0
+
+    elif gesture == 2 and confidence >= certain_threshold:
+        counterclockwise_con += 1
+        clockwise_con = 0
+        print(f"Counterclockwise detected ({confidence:.2%}) ")
+        if counterclockwise_con >= con_cnt:
+            light_state = 0
+            print("Light OFF")
+            clockwise_con = 0
+            counterclockwise_con = 0
+    else:
+        # Random movement does not change the current light state.
+        if gesture == 0:
+            clockwise_con = 0
+            counterclockwise_con = 0
+            print(f"Random movement ({confidence:.2%}) -> NO CHANGE")
+        elif gesture == 1:
+            print(f"Uncertain clockwise ({confidence:.2%}) -> NO CHANGE")
+        else:
+            print(f"Uncertain counterclockwise ({confidence:.2%}) -> NO CHANGE")
         
         
 def Dummy_Sensor():
-    return latest_prediction
+    return light_state
 
 
 def on_register(r):

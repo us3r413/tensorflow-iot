@@ -15,7 +15,7 @@ exec_interval = 0.5  # IDF/ODF interval
 
 rowcnt = 240
 fieldnames = ['AccX', 'AccY', 'AccZ', 'GyroX', 'GyroY', 'GyroZ']
-csvfile = open('random5.csv', 'w', newline='')
+csvfile = open('counterclockwise3.csv', 'w', newline='')
 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 writer.writeheader()
 
